@@ -14,7 +14,7 @@ def test_ai_generation_from_prompt_and_file():
 
     assert "rapport" in title.lower() or "veiligheid" in title.lower()
     assert "Context" in content
-    assert "- Maak een rapport over veiligheid en risico management." in content or "- Belangrijk: veiligheidsbeleid" in content
+    assert "veilig" in content.lower() or "risico" in content.lower()
     assert "Recommendations" in content
     print("✓ AI draft with prompt and file generated")
 

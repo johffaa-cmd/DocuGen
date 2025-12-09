@@ -86,8 +86,9 @@ def clean_text(value):
     """Strip control characters to keep generated content safe."""
     if not value:
         return ''
-    # Remove non-printable/control characters
-    sanitized = re.sub(r'[\r\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', ' ', value)
+    normalized = value.replace('\r\n', '\n').replace('\r', '\n')
+    # Remove non-printable/control characters but preserve tabs/newlines
+    sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', ' ', normalized)
     return sanitized.strip()
 
 
@@ -117,7 +118,7 @@ def _summarize_text(text):
     if not cleaned:
         return ''
     sentences = re.split(r'(?<=[.!?])\s+', cleaned)
-    if sentences and sentences[0]:
+    if sentences and sentences[0].strip():
         return ' '.join(sentences[:2]).strip()
     return cleaned[:MAX_SUMMARY_LENGTH].strip()
 

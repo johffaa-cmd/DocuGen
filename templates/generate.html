@@ -83,7 +83,10 @@ You can write multiple paragraphs."
             contentField.placeholder = "Enter your document content here...\n\nYou can write multiple paragraphs.";
         }
     });
-    // Trigger placeholder update on initial load
-    document.getElementById('doc_type').dispatchEvent(new Event('change'));
+    // Trigger placeholder update on initial load only when content is empty
+    const contentField = document.getElementById('content');
+    if (!contentField.value) {
+        document.getElementById('doc_type').dispatchEvent(new Event('change'));
+    }
 </script>
 {% endblock %}
