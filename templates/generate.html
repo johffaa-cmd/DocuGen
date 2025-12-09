@@ -44,7 +44,8 @@ You can write multiple paragraphs."
             >{{ ai_prompt or '' }}</textarea>
             <div style="margin-top: 0.75rem;">
                 <label for="ai_file" style="display:block; margin-bottom:0.35rem;">Upload context file (.txt or .md, max {{ max_ai_size_kb }}KB)</label>
-                <input type="file" id="ai_file" name="ai_file" accept=".txt,.md">
+                <input type="file" id="ai_file" name="ai_file" accept=".txt,.md" data-max-size="{{ max_ai_size_kb }}">
+                <small style="color:#666;">Server-enforced limit: {{ max_ai_size_kb }}KB</small>
             </div>
             <div style="margin-top: 0.75rem;">
                 <button type="submit" name="action" value="ai_generate" class="btn btn-secondary">Generate draft with AI</button>

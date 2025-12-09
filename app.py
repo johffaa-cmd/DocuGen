@@ -126,7 +126,14 @@ def _summarize_text(text):
 def generate_ai_draft(prompt_text, file_text, doc_type):
     """
     Generate a deterministic AI-like draft based on prompt and optional file text.
-    Avoids external services by creating a structured outline locally.
+    
+    Args:
+        prompt_text (str): Freeform user prompt describing desired output.
+        file_text (str): Optional supporting context text.
+        doc_type (str): Document type key (letter, invoice, report, general).
+
+    Returns:
+        tuple[str, str]: Suggested (title, content) strings.
     """
     doc_type = normalize_doc_type(doc_type)
     prompt_text = clean_text(prompt_text)
@@ -152,11 +159,13 @@ def generate_ai_draft(prompt_text, file_text, doc_type):
             title_candidate = f"AI {doc_type.capitalize()} Draft"
 
     # Collect bullet-style highlights
-    raw_lines = [
-        stripped for line in combined.splitlines()
-        for stripped in [line.strip(BULLET_STRIP_CHARS)]
-        if line.strip() and stripped
-    ]
+    raw_lines = []
+    for line in combined.splitlines():
+        if not line.strip():
+            continue
+        stripped = line.strip(BULLET_STRIP_CHARS)
+        if stripped:
+            raw_lines.append(stripped)
     bullet_points = raw_lines[:4]
     if not bullet_points:
         bullet_points = [summary]
@@ -172,8 +181,9 @@ def generate_ai_draft(prompt_text, file_text, doc_type):
         section_lines = []
         if idx == 0:
             section_lines.append(summary)
-        for point in bullet_points:
-            section_lines.append(f"- {point}")
+        else:
+            for point in bullet_points:
+                section_lines.append(f"- {point}")
         sections.append(f"{heading}\n" + '\n'.join(section_lines))
 
     content = '\n\n'.join(sections)
