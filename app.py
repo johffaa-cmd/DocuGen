@@ -105,11 +105,14 @@ def load_text_from_upload(upload):
     if ext not in ALLOWED_AI_FILE_EXTENSIONS:
         raise ValueError('Unsupported file type. Please upload a .txt or .md file.')
 
+    if upload.content_length and upload.content_length > MAX_AI_FILE_SIZE:
+        raise ValueError('File too large. Please upload a file smaller than 50KB.')
+
     data = upload.read(MAX_AI_FILE_SIZE + 1)
     if len(data) > MAX_AI_FILE_SIZE:
         raise ValueError('File too large. Please upload a file smaller than 50KB.')
 
-    return data.decode('utf-8', errors='ignore')
+    return data.decode('utf-8', errors='replace')
 
 
 def _summarize_text(text):
@@ -298,7 +301,8 @@ def generate_document():
         'doc_type': 'general',
         'title': '',
         'content': '',
-        'ai_prompt': ''
+        'ai_prompt': '',
+        'max_ai_size_kb': MAX_AI_FILE_SIZE // 1024
     }
     if request.method == 'POST':
         action = request.form.get('action', 'create')

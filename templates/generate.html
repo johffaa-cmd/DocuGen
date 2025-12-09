@@ -42,7 +42,7 @@ You can write multiple paragraphs."
                       placeholder="Summarize the topic, audience, and tone for the AI to draft..."
             >{{ ai_prompt or '' }}</textarea>
             <div style="margin-top: 0.75rem;">
-                <label for="ai_file" style="display:block; margin-bottom:0.35rem;">Upload context file (.txt or .md, max 50KB)</label>
+                <label for="ai_file" style="display:block; margin-bottom:0.35rem;">Upload context file (.txt or .md, max {{ max_ai_size_kb }}KB)</label>
                 <input type="file" id="ai_file" name="ai_file" accept=".txt,.md">
             </div>
             <div style="margin-top: 0.75rem;">
