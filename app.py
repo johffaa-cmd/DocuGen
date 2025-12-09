@@ -101,12 +101,12 @@ def load_text_from_upload(upload):
     if not filename:
         return ''
 
-    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-    if ext not in ALLOWED_AI_FILE_EXTENSIONS:
+    if filename.endswith('.'):
         raise ValueError('Unsupported file type. Please upload a .txt or .md file.')
 
-    if upload.content_length and upload.content_length > MAX_AI_FILE_SIZE:
-        raise ValueError('File too large. Please upload a file smaller than 50KB.')
+    ext = filename.rpartition('.')[2].lower() if '.' in filename else ''
+    if not ext or ext not in ALLOWED_AI_FILE_EXTENSIONS:
+        raise ValueError('Unsupported file type. Please upload a .txt or .md file.')
 
     data = upload.read(MAX_AI_FILE_SIZE + 1)
     if len(data) > MAX_AI_FILE_SIZE:
@@ -298,7 +298,7 @@ def dashboard():
 def generate_document():
     """Generate a new document"""
     form_state = {
-        'doc_type': 'general',
+        'doc_type': '',
         'title': '',
         'content': '',
         'ai_prompt': '',

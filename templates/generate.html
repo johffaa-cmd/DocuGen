@@ -10,6 +10,7 @@
         <div class="form-group">
             <label for="doc_type">Document Type</label>
             <select id="doc_type" name="doc_type" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+                <option value="" {% if not doc_type %}selected{% endif %}>Select a document type...</option>
                 <option value="general" {% if doc_type == 'general' %}selected{% endif %}>General Document</option>
                 <option value="letter" {% if doc_type == 'letter' %}selected{% endif %}>Professional Letter</option>
                 <option value="invoice" {% if doc_type == 'invoice' %}selected{% endif %}>Invoice</option>
@@ -85,7 +86,7 @@ You can write multiple paragraphs."
     });
     // Trigger placeholder update on initial load only when content is empty
     const contentField = document.getElementById('content');
-    if (!contentField.value) {
+    if (contentField && !contentField.value) {
         document.getElementById('doc_type').dispatchEvent(new Event('change'));
     }
 </script>
