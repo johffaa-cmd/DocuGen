@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - DocuGen{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: #667eea; margin-bottom: 1.5rem;">Welcome, {{ user.username }}!</h2>
+    
+    <div style="background-color: #f8f9fa; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+        <h3 style="color: #333; margin-bottom: 1rem;">Your Account Information</h3>
+        <p style="margin-bottom: 0.5rem;"><strong>Username:</strong> {{ user.username }}</p>
+        <p style="margin-bottom: 0.5rem;"><strong>Email:</strong> {{ user.email }}</p>
+        <p style="margin-bottom: 0;"><strong>User ID:</strong> {{ user.id }}</p>
+    </div>
+    
+    <div style="background-color: #e7f3ff; padding: 1.5rem; border-radius: 4px; border-left: 4px solid #667eea;">
+        <h3 style="color: #333; margin-bottom: 1rem;">Quick Actions</h3>
+        <p style="color: #666; margin-bottom: 1rem;">
+            Document generation features coming soon! This dashboard will be enhanced with:
+        </p>
+        <ul style="color: #666; margin-left: 1.5rem;">
+            <li>PDF document generation</li>
+            <li>Template management</li>
+            <li>Document history</li>
+            <li>Export and sharing options</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
