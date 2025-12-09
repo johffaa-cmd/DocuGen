@@ -37,6 +37,10 @@ db = SQLAlchemy(app)
 ALLOWED_DOC_TYPES = {'letter', 'invoice', 'report', 'general'}
 ALLOWED_AI_FILE_EXTENSIONS = {'txt', 'md'}
 MAX_AI_FILE_SIZE = 50 * 1024  # 50KB cap to avoid large uploads
+MAX_SUMMARY_LENGTH = 320
+MAX_TITLE_LENGTH = 80
+TITLE_TRUNCATE_LENGTH = 77
+BULLET_STRIP_CHARS = ' -•\t'
 
 
 class User(db.Model):
@@ -115,7 +119,7 @@ def _summarize_text(text):
     sentences = re.split(r'(?<=[.!?])\s+', cleaned)
     if sentences and sentences[0]:
         return ' '.join(sentences[:2]).strip()
-    return cleaned[:320].strip()
+    return cleaned[:MAX_SUMMARY_LENGTH].strip()
 
 
 def generate_ai_draft(prompt_text, file_text, doc_type):
@@ -141,13 +145,13 @@ def generate_ai_draft(prompt_text, file_text, doc_type):
         title_source = prompt_text or summary
         title_candidate = title_source.splitlines()[0] if title_source else ''
         title_candidate = re.sub(r'\s+', ' ', title_candidate).strip()
-        if len(title_candidate) > 80:
-            title_candidate = title_candidate[:77].rstrip() + '...'
+        if len(title_candidate) > MAX_TITLE_LENGTH:
+            title_candidate = title_candidate[:TITLE_TRUNCATE_LENGTH].rstrip() + '...'
         if not title_candidate:
             title_candidate = f"AI {doc_type.capitalize()} Draft"
 
     # Collect bullet-style highlights
-    raw_lines = [line.strip(" -•\t") for line in combined.splitlines() if line.strip()]
+    raw_lines = [line.strip(BULLET_STRIP_CHARS) for line in combined.splitlines() if line.strip()]
     bullet_points = [line for line in raw_lines if line][:4]
     if not bullet_points:
         bullet_points = [summary]
