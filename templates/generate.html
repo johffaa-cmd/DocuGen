@@ -6,21 +6,21 @@
 <div class="card">
     <h2 style="color: #667eea; margin-bottom: 1.5rem;">Generate New Document</h2>
     
-    <form method="POST" action="{{ url_for('generate_document') }}">
+    <form method="POST" action="{{ url_for('generate_document') }}" enctype="multipart/form-data">
         <div class="form-group">
             <label for="doc_type">Document Type</label>
             <select id="doc_type" name="doc_type" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
-                <option value="">Select a document type...</option>
-                <option value="letter">Professional Letter</option>
-                <option value="invoice">Invoice</option>
-                <option value="report">Report</option>
-                <option value="general">General Document</option>
+                <option value="general" {% if doc_type == 'general' %}selected{% endif %}>General Document</option>
+                <option value="letter" {% if doc_type == 'letter' %}selected{% endif %}>Professional Letter</option>
+                <option value="invoice" {% if doc_type == 'invoice' %}selected{% endif %}>Invoice</option>
+                <option value="report" {% if doc_type == 'report' %}selected{% endif %}>Report</option>
             </select>
         </div>
 
         <div class="form-group">
             <label for="title">Document Title</label>
             <input type="text" id="title" name="title" required 
+                   value="{{ title or '' }}"
                    placeholder="e.g., Business Proposal, Monthly Report, etc.">
         </div>
 
@@ -28,13 +28,28 @@
             <label for="content">Document Content</label>
             <textarea id="content" name="content" rows="12" required
                       style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; font-family: inherit; resize: vertical;"
-                      placeholder="Enter your document content here...
+                      placeholder="Enter your document content here..."
+            >{{ content or '' }}</textarea>
+        </div>
 
-You can write multiple paragraphs. Each line will be formatted appropriately based on the document type you selected."></textarea>
+        <div class="form-group" style="background-color: #f8f9fa; padding: 1rem; border-radius: 4px;">
+            <label for="ai_prompt" style="margin-bottom: 0.25rem;">AI Assist (optional)</label>
+            <p style="color: #666; margin-bottom: 0.75rem;">Provide a prompt and/or upload a short text/markdown file to auto-generate a draft.</p>
+            <textarea id="ai_prompt" name="ai_prompt" rows="4"
+                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; font-family: inherit; resize: vertical;"
+                      placeholder="Summarize the topic, audience, and tone for the AI to draft..."
+            >{{ ai_prompt or '' }}</textarea>
+            <div style="margin-top: 0.75rem;">
+                <label for="ai_file" style="display:block; margin-bottom:0.35rem;">Upload context file (.txt or .md, max 50KB)</label>
+                <input type="file" id="ai_file" name="ai_file" accept=".txt,.md">
+            </div>
+            <div style="margin-top: 0.75rem;">
+                <button type="submit" name="action" value="ai_generate" class="btn btn-secondary">Generate draft with AI</button>
+            </div>
         </div>
 
         <div class="form-group" style="margin-top: 2rem;">
-            <button type="submit" class="btn btn-primary">Generate PDF</button>
+            <button type="submit" name="action" value="create" class="btn btn-primary">Generate PDF</button>
             <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="margin-left: 1rem;">Cancel</a>
         </div>
     </form>
@@ -66,5 +81,7 @@ You can write multiple paragraphs. Each line will be formatted appropriately bas
             contentField.placeholder = "Enter your document content here...\n\nYou can write multiple paragraphs.";
         }
     });
+    // Trigger placeholder update on initial load
+    document.getElementById('doc_type').dispatchEvent(new Event('change'));
 </script>
 {% endblock %}

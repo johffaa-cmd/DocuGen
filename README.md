@@ -46,6 +46,7 @@ A simple web application with user authentication for document generation.
   - Invoices
   - Reports
   - General Documents
+- AI-assisted drafting from prompts or uploaded text/markdown files
 - Document history and management
 - Download and delete documents
 - Clean and responsive UI

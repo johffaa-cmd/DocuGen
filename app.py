@@ -34,6 +34,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+ALLOWED_DOC_TYPES = {'letter', 'invoice', 'report', 'general'}
+ALLOWED_AI_FILE_EXTENSIONS = {'txt', 'md'}
+MAX_AI_FILE_SIZE = 50 * 1024  # 50KB cap to avoid large uploads
+
 
 class User(db.Model):
     """User model for authentication"""
@@ -66,6 +70,106 @@ class Document(db.Model):
 
     def __repr__(self):
         return f'<Document {self.title}>'
+
+
+def normalize_doc_type(doc_type):
+    """Return a supported document type or default to general."""
+    normalized = (doc_type or '').lower()
+    return normalized if normalized in ALLOWED_DOC_TYPES else 'general'
+
+
+def clean_text(value):
+    """Strip control characters to keep generated content safe."""
+    if not value:
+        return ''
+    # Remove non-printable/control characters
+    sanitized = re.sub(r'[\r\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', ' ', value)
+    return sanitized.strip()
+
+
+def load_text_from_upload(upload):
+    """Extract safe text from an uploaded file."""
+    if not upload or not upload.filename:
+        return ''
+
+    filename = secure_filename(upload.filename)
+    if not filename:
+        return ''
+
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in ALLOWED_AI_FILE_EXTENSIONS:
+        raise ValueError('Unsupported file type. Please upload a .txt or .md file.')
+
+    data = upload.read(MAX_AI_FILE_SIZE + 1)
+    if len(data) > MAX_AI_FILE_SIZE:
+        raise ValueError('File too large. Please upload a file smaller than 50KB.')
+
+    try:
+        return data.decode('utf-8', errors='ignore')
+    finally:
+        upload.close()
+
+
+def _summarize_text(text):
+    """Generate a short summary from provided text."""
+    cleaned = clean_text(text)
+    if not cleaned:
+        return ''
+    sentences = re.split(r'(?<=[.!?])\s+', cleaned)
+    if sentences and sentences[0]:
+        return ' '.join(sentences[:2]).strip()
+    return cleaned[:320].strip()
+
+
+def generate_ai_draft(prompt_text, file_text, doc_type):
+    """
+    Generate a deterministic AI-like draft based on prompt and optional file text.
+    Avoids external services by creating a structured outline locally.
+    """
+    doc_type = normalize_doc_type(doc_type)
+    prompt_text = clean_text(prompt_text)
+    file_text = clean_text(file_text)
+
+    combined_parts = [part for part in [prompt_text, file_text] if part]
+    combined = '\n'.join(combined_parts)
+    if combined_parts:
+        summary = _summarize_text(combined) or "Automated content generated from your inputs."
+    else:
+        summary = "Automated content generated from your inputs."
+
+    # Derive a concise title
+    if not prompt_text and not file_text:
+        title_candidate = f"AI {doc_type.capitalize()} Draft"
+    else:
+        title_source = prompt_text or summary
+        title_candidate = title_source.splitlines()[0] if title_source else ''
+        title_candidate = re.sub(r'\s+', ' ', title_candidate).strip()
+        if len(title_candidate) > 80:
+            title_candidate = title_candidate[:77].rstrip() + '...'
+        if not title_candidate:
+            title_candidate = f"AI {doc_type.capitalize()} Draft"
+
+    # Collect bullet-style highlights
+    raw_lines = [line.strip(" -•\t") for line in combined.splitlines() if line.strip()]
+    bullet_points = [line for line in raw_lines if line][:4]
+    if not bullet_points:
+        bullet_points = [summary]
+
+    section_templates = {
+        'letter': ['Purpose', 'Key Points', 'Closing'],
+        'invoice': ['Scope Summary', 'Deliverables', 'Next Steps'],
+        'report': ['Context', 'Findings', 'Recommendations'],
+        'general': ['Overview', 'Details', 'Actions']
+    }
+    sections = []
+    for heading in section_templates[doc_type]:
+        section_lines = [summary]
+        for point in bullet_points:
+            section_lines.append(f"- {point}")
+        sections.append(f"{heading}\n" + '\n'.join(section_lines))
+
+    content = '\n\n'.join(sections)
+    return title_candidate, content
 
 
 def login_required(f):
@@ -188,18 +292,47 @@ def dashboard():
 @login_required
 def generate_document():
     """Generate a new document"""
+    form_state = {
+        'doc_type': 'general',
+        'title': '',
+        'content': '',
+        'ai_prompt': ''
+    }
     if request.method == 'POST':
-        doc_type = request.form.get('doc_type', '').strip()
+        action = request.form.get('action', 'create')
+        doc_type = normalize_doc_type(request.form.get('doc_type', ''))
         title = request.form.get('title', '').strip()
-        
-        # Get document-specific fields
         content = request.form.get('content', '').strip()
-        
-        # Validation
-        if not doc_type or not title:
-            flash('Document type and title are required.', 'error')
-            return render_template('generate.html')
-        
+        ai_prompt = request.form.get('ai_prompt', '').strip()
+
+        form_state.update({'doc_type': doc_type, 'title': title, 'content': content, 'ai_prompt': ai_prompt})
+
+        if action == 'ai_generate':
+            try:
+                file_text = load_text_from_upload(request.files.get('ai_file'))
+            except ValueError as exc:
+                flash(str(exc), 'error')
+                return render_template('generate.html', **form_state)
+
+            if not ai_prompt and not file_text:
+                flash('Provide a prompt or upload a text/markdown file for AI generation.', 'error')
+                return render_template('generate.html', **form_state)
+
+            generated_title, generated_content = generate_ai_draft(ai_prompt, file_text, doc_type)
+            form_state['title'] = title or generated_title
+            form_state['content'] = generated_content
+            flash('AI draft generated. Review and edit before creating the PDF.', 'info')
+            return render_template('generate.html', **form_state)
+
+        # Validation for manual or AI-refined submission
+        if not doc_type or doc_type not in ALLOWED_DOC_TYPES:
+            flash('Document type is required.', 'error')
+            return render_template('generate.html', **form_state)
+
+        if not title:
+            flash('Document title is required.', 'error')
+            return render_template('generate.html', **form_state)
+
         # Create document record
         document = Document(
             title=title,
@@ -209,11 +342,11 @@ def generate_document():
         )
         db.session.add(document)
         db.session.commit()
-        
+
         flash(f'Document "{title}" created successfully!', 'success')
         return redirect(url_for('download_document', doc_id=document.id))
-    
-    return render_template('generate.html')
+
+    return render_template('generate.html', **form_state)
 
 
 @app.route('/download/<int:doc_id>')
