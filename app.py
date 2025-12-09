@@ -104,10 +104,7 @@ def load_text_from_upload(upload):
     if len(data) > MAX_AI_FILE_SIZE:
         raise ValueError('File too large. Please upload a file smaller than 50KB.')
 
-    try:
-        return data.decode('utf-8', errors='ignore')
-    finally:
-        upload.close()
+    return data.decode('utf-8', errors='ignore')
 
 
 def _summarize_text(text):
@@ -325,7 +322,7 @@ def generate_document():
             return render_template('generate.html', **form_state)
 
         # Validation for manual or AI-refined submission
-        if not doc_type or doc_type not in ALLOWED_DOC_TYPES:
+        if not doc_type:
             flash('Document type is required.', 'error')
             return render_template('generate.html', **form_state)
 
