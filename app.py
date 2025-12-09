@@ -2,13 +2,23 @@
 DocuGen - Document Generation Application with User Authentication
 """
 import os
+import secrets
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Security: Generate a secure random key if not provided
+if 'SECRET_KEY' not in os.environ:
+    # In development, generate a random key
+    # In production, this should be set as an environment variable
+    app.config['SECRET_KEY'] = secrets.token_hex(32)
+    print("WARNING: Using auto-generated SECRET_KEY. Set SECRET_KEY environment variable for production!")
+else:
+    app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///docugen.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -158,4 +168,14 @@ def init_db():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get debug mode from environment, default to False for safety
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
+    # In production, host should be configured by WSGI server
+    # For development, allow override via environment variable
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')
+    port = int(os.environ.get('FLASK_PORT', '5000'))
+    
+    if debug_mode:
+        print("WARNING: Running in debug mode. This should only be used in development!")
+    
+    app.run(debug=debug_mode, host=host, port=port)

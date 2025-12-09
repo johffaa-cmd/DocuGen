@@ -49,12 +49,22 @@ The application will be available at `http://localhost:5000`
 
 The application uses environment variables for configuration:
 
-- `SECRET_KEY`: Secret key for session management (defaults to 'dev-secret-key-change-in-production')
+- `SECRET_KEY`: Secret key for session management (auto-generated if not set, but should be set in production)
+- `FLASK_DEBUG`: Set to 'true' to enable debug mode (defaults to false for security)
+- `FLASK_HOST`: Host to bind to (defaults to 127.0.0.1)
+- `FLASK_PORT`: Port to run on (defaults to 5000)
 
-For production deployment, set a strong secret key:
+### Production Deployment
+
+For production deployment, you **must** set these environment variables:
+
 ```bash
-export SECRET_KEY='your-secret-key-here'
+export SECRET_KEY='your-strong-random-secret-key-here'
+export FLASK_DEBUG='false'
+export FLASK_HOST='0.0.0.0'  # Only if needed
 ```
+
+**Important**: Do not run the Flask development server in production. Use a production WSGI server like Gunicorn or uWSGI.
 
 ## Database
 
