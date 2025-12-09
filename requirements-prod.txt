@@ -1,5 +1,5 @@
 # Production dependencies (optional)
 # Install with: pip install -r requirements-prod.txt
 
-gunicorn==21.2.0
+gunicorn==22.0.0
 python-dotenv==1.0.0
