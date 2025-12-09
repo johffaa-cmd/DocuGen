@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Document - DocuGen{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: #667eea; margin-bottom: 1.5rem;">Generate New Document</h2>
+    
+    <form method="POST" action="{{ url_for('generate_document') }}">
+        <div class="form-group">
+            <label for="doc_type">Document Type</label>
+            <select id="doc_type" name="doc_type" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+                <option value="">Select a document type...</option>
+                <option value="letter">Professional Letter</option>
+                <option value="invoice">Invoice</option>
+                <option value="report">Report</option>
+                <option value="general">General Document</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="title">Document Title</label>
+            <input type="text" id="title" name="title" required 
+                   placeholder="e.g., Business Proposal, Monthly Report, etc.">
+        </div>
+
+        <div class="form-group">
+            <label for="content">Document Content</label>
+            <textarea id="content" name="content" rows="12" required
+                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; font-family: inherit; resize: vertical;"
+                      placeholder="Enter your document content here...
+
+You can write multiple paragraphs. Each line will be formatted appropriately based on the document type you selected."></textarea>
+        </div>
+
+        <div class="form-group" style="margin-top: 2rem;">
+            <button type="submit" class="btn btn-primary">Generate PDF</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="margin-left: 1rem;">Cancel</a>
+        </div>
+    </form>
+
+    <div style="margin-top: 2rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 4px;">
+        <h3 style="color: #333; margin-bottom: 1rem;">Document Type Guide</h3>
+        <ul style="color: #666; line-height: 1.8;">
+            <li><strong>Professional Letter:</strong> Formal business letter with header, body, and signature</li>
+            <li><strong>Invoice:</strong> Professional invoice layout with details table</li>
+            <li><strong>Report:</strong> Structured report with cover page and sections</li>
+            <li><strong>General Document:</strong> Simple document with title and content</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // Add helpful hints based on document type selection
+    document.getElementById('doc_type').addEventListener('change', function() {
+        const contentField = document.getElementById('content');
+        const docType = this.value;
+        
+        if (docType === 'letter') {
+            contentField.placeholder = "Dear [Recipient],\n\nI am writing to...\n\n[Your letter content here]\n\nThank you for your consideration.";
+        } else if (docType === 'invoice') {
+            contentField.placeholder = "Service/Product Description:\n- Item 1: [Description]\n- Item 2: [Description]\n\nTotal Amount: [Amount]\n\nPayment Terms: [Terms]";
+        } else if (docType === 'report') {
+            contentField.placeholder = "Executive Summary:\n\n[Overview of the report]\n\nKey Findings:\n- Finding 1\n- Finding 2\n\nConclusion:\n[Your conclusions]";
+        } else {
+            contentField.placeholder = "Enter your document content here...\n\nYou can write multiple paragraphs.";
+        }
+    });
+</script>
+{% endblock %}

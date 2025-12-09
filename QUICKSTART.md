@@ -58,7 +58,20 @@
 
 **Dashboard:** Your personal dashboard
 - View your account information
-- Access future document generation features
+- See document creation statistics
+- Access document history with download and delete options
+
+**Generate Documents:** Create professional PDF documents
+- Click "Generate Document" from the dashboard or navigation
+- Select document type: Letter, Invoice, Report, or General
+- Enter document title and content
+- Click "Generate PDF" to create and download your document
+
+**Document Types:**
+- **Professional Letter:** Formatted business letter with header, body, and signature
+- **Invoice:** Professional invoice layout with details table
+- **Report:** Structured report with cover page and sections
+- **General Document:** Simple document with title and content
 
 **Logout:** Sign out of your account
 - Click "Logout" in the navigation menu

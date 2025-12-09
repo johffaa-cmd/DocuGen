@@ -7,8 +7,15 @@ A simple web application with user authentication for document generation.
 - User registration and login
 - Secure password hashing using Werkzeug
 - Session-based authentication
+- **PDF Document Generation** with multiple templates:
+  - Professional Letters
+  - Invoices
+  - Reports
+  - General Documents
+- Document history and management
+- Download and delete documents
 - Clean and responsive UI
-- SQLite database for user management
+- SQLite database for user and document management
 
 ## Installation
 
@@ -35,7 +42,12 @@ The application will be available at `http://localhost:5000`
 1. **Register**: Create a new account by visiting `/register`
 2. **Login**: Sign in with your credentials at `/login`
 3. **Dashboard**: Access your personalized dashboard after logging in
-4. **Logout**: Sign out using the logout button in the navigation
+4. **Generate Documents**: Click "Generate Document" to create professional PDFs
+   - Choose from Letter, Invoice, Report, or General document types
+   - Fill in the title and content
+   - Download your formatted PDF instantly
+5. **Manage Documents**: View, download, or delete your document history
+6. **Logout**: Sign out using the logout button in the navigation
 
 ## Security Features
 
@@ -76,21 +88,34 @@ The application uses SQLite with the following schema:
 - `email`: Unique email address
 - `password_hash`: Hashed password
 
+**Documents Table:**
+- `id`: Primary key
+- `title`: Document title
+- `doc_type`: Document type (letter, invoice, report, general)
+- `content`: Document content (text)
+- `created_at`: Timestamp of document creation
+- `user_id`: Foreign key to Users table
+
 ## Development
 
 The application is built with:
 - Flask 3.0.0
 - Flask-SQLAlchemy 3.1.1
-- Werkzeug 3.0.1
+- Werkzeug 3.0.3
+- ReportLab 4.0.7 (for PDF generation)
+- Python-dateutil 2.8.2
 
 ## Future Enhancements
 
-- PDF document generation functionality
-- Document templates
+- Advanced PDF templates with custom styling
+- Document templates library
+- Bulk document generation
 - User profile management
 - Password reset functionality
 - Email verification
 - OAuth integration
+- Document sharing and collaboration
+- Export to multiple formats (Word, HTML)
 
 ## License
 
