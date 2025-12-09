@@ -3,11 +3,13 @@ DocuGen - Document Generation Application with User Authentication
 """
 import os
 import secrets
+import re
 from datetime import datetime
 from io import BytesIO
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from functools import wraps
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
@@ -225,21 +227,28 @@ def download_document(doc_id):
         flash('Access denied.', 'error')
         return redirect(url_for('dashboard'))
     
+    # Get user once for all PDF generation functions
+    user = User.query.get(document.user_id)
+    
     # Generate PDF
     pdf_buffer = BytesIO()
     
     if document.doc_type == 'letter':
-        generate_letter_pdf(pdf_buffer, document)
+        generate_letter_pdf(pdf_buffer, document, user)
     elif document.doc_type == 'invoice':
-        generate_invoice_pdf(pdf_buffer, document)
+        generate_invoice_pdf(pdf_buffer, document, user)
     elif document.doc_type == 'report':
-        generate_report_pdf(pdf_buffer, document)
+        generate_report_pdf(pdf_buffer, document, user)
     else:
-        generate_simple_pdf(pdf_buffer, document)
+        generate_simple_pdf(pdf_buffer, document, user)
     
     pdf_buffer.seek(0)
     
-    filename = f"{document.title.replace(' ', '_')}_{document.id}.pdf"
+    # Sanitize filename to prevent directory traversal and special characters
+    safe_title = secure_filename(document.title)
+    if not safe_title:  # If title is all special chars, use a default
+        safe_title = "document"
+    filename = f"{safe_title}_{document.id}.pdf"
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',
@@ -267,7 +276,7 @@ def delete_document(doc_id):
     return redirect(url_for('dashboard'))
 
 
-def generate_simple_pdf(buffer, document):
+def generate_simple_pdf(buffer, document, user):
     """Generate a simple PDF document"""
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     story = []
@@ -286,7 +295,6 @@ def generate_simple_pdf(buffer, document):
     story.append(Spacer(1, 0.2 * inch))
     
     # Document info
-    user = User.query.get(document.user_id)
     info_style = styles['Normal']
     story.append(Paragraph(f"<b>Created by:</b> {user.username}", info_style))
     story.append(Paragraph(f"<b>Date:</b> {document.created_at.strftime('%B %d, %Y')}", info_style))
@@ -304,13 +312,11 @@ def generate_simple_pdf(buffer, document):
     doc.build(story)
 
 
-def generate_letter_pdf(buffer, document):
+def generate_letter_pdf(buffer, document, user):
     """Generate a professional letter PDF"""
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     story = []
     styles = getSampleStyleSheet()
-    
-    user = User.query.get(document.user_id)
     
     # Header with date
     date_style = ParagraphStyle('DateStyle', parent=styles['Normal'], alignment=2)  # Right align
@@ -345,13 +351,11 @@ def generate_letter_pdf(buffer, document):
     doc.build(story)
 
 
-def generate_invoice_pdf(buffer, document):
+def generate_invoice_pdf(buffer, document, user):
     """Generate an invoice PDF"""
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     story = []
     styles = getSampleStyleSheet()
-    
-    user = User.query.get(document.user_id)
     
     # Header
     title_style = ParagraphStyle(
@@ -396,13 +400,11 @@ def generate_invoice_pdf(buffer, document):
     doc.build(story)
 
 
-def generate_report_pdf(buffer, document):
+def generate_report_pdf(buffer, document, user):
     """Generate a professional report PDF"""
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     story = []
     styles = getSampleStyleSheet()
-    
-    user = User.query.get(document.user_id)
     
     # Cover page
     title_style = ParagraphStyle(
