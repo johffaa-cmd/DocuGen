@@ -101,9 +101,6 @@ def load_text_from_upload(upload):
     if not filename:
         return ''
 
-    if filename.endswith('.'):
-        raise ValueError('Unsupported file type. Please upload a .txt or .md file.')
-
     ext = filename.rpartition('.')[2].lower() if '.' in filename else ''
     if not ext or ext not in ALLOWED_AI_FILE_EXTENSIONS:
         raise ValueError('Unsupported file type. Please upload a .txt or .md file.')
@@ -155,8 +152,12 @@ def generate_ai_draft(prompt_text, file_text, doc_type):
             title_candidate = f"AI {doc_type.capitalize()} Draft"
 
     # Collect bullet-style highlights
-    raw_lines = [line.strip(BULLET_STRIP_CHARS) for line in combined.splitlines() if line.strip()]
-    bullet_points = [line for line in raw_lines if line][:4]
+    raw_lines = [
+        stripped for line in combined.splitlines()
+        for stripped in [line.strip(BULLET_STRIP_CHARS)]
+        if line.strip() and stripped
+    ]
+    bullet_points = raw_lines[:4]
     if not bullet_points:
         bullet_points = [summary]
 
@@ -167,8 +168,10 @@ def generate_ai_draft(prompt_text, file_text, doc_type):
         'general': ['Overview', 'Details', 'Actions']
     }
     sections = []
-    for heading in section_templates[doc_type]:
-        section_lines = [summary]
+    for idx, heading in enumerate(section_templates[doc_type]):
+        section_lines = []
+        if idx == 0:
+            section_lines.append(summary)
         for point in bullet_points:
             section_lines.append(f"- {point}")
         sections.append(f"{heading}\n" + '\n'.join(section_lines))
