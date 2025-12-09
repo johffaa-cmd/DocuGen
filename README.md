@@ -14,7 +14,7 @@
 - **Validation and errors**
   - Implement or improve an IBAN regex (ISO 13616, length + mod-97 check).
   - Check negative/unparsed amounts and missing fields.
-  - Catch specific exceptions (e.g., `PdfReadError`/`PdfReadWarning`, `ValueError`) and return clear messages instead of `except: pass`.
+  - Catch specific exceptions (e.g., `PdfReaderError`/`PdfReadWarning`, `ValueError`) and return clear messages instead of `except: pass`.
 - **References**
   - For security: use `secrets`/`uuid` so references are not predictable.
   - For deterministic tests: inject a seeded `random.Random`.
@@ -22,10 +22,10 @@
 - **Scanner robustness**
   - Catch specific `PdfReader` exceptions.
   - Strip unusual whitespace.
-  - Support multiple currencies/amount formats via `decimal` with fixed precision/rounding (e.g., `ROUND_HALF_EVEN`).
+  - Support multiple currencies/amount formats via `Decimal` (from `decimal`) with fixed precision/rounding (e.g., `ROUND_HALF_EVEN`).
 - **Structure**
-  - Separate IO (CLI/scanner) from logic (Transaction/PDFEngine) for reuse and testing.
-  - Use dependency injection for configuration/paths and, where appropriate, a service or repository layer.
+  - Separate presentation (CLI/scanner), business logic (Transaction/PDFEngine), and data access concerns for reuse and testing.
+  - Use dependency injection for configuration/paths; apply additional layering only where it adds value.
 - **Configuration**
   - Read paths/colors from config or env, and provide a fallback for missing assets (logo).
 - **Logging**
