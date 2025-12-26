@@ -1,51 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}Welcome - DocuGen{% endblock %}
+{% block title %}Welcome{% endblock %}
 
 {% block content %}
-<div class="card text-center">
-    <h1 style="color: #667eea; margin-bottom: 1rem;">Welcome to DocuGen</h1>
-    <p style="font-size: 1.2rem; color: #666; margin-bottom: 2rem;">
-        Your professional document generation platform - Create stunning PDF documents in seconds!
+<div class="text-center animate-fade-in section-spacer">
+    <h1
+        style="font-size: 3.5rem; margin-bottom: 1.5rem; background: linear-gradient(135deg, #fff 0%, var(--color-primary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Professional Documents,<br>Instantly Generated.
+    </h1>
+    <p style="font-size: 1.25rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 3rem;">
+        Generate authentic-looking invoices, receipts, and reports with our high-fidelity engine. Powered by AI to save
+        you time.
     </p>
-    
-    <div style="margin-top: 2rem;">
-        <a href="{{ url_for('register') }}" class="btn btn-primary" style="margin-right: 1rem;">Get Started</a>
-        <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign In</a>
+
+    <div class="flex justify-center gap-2">
+        <a href="{{ url_for('register') }}" class="btn btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem;">Get
+            Started Free</a>
+        <a href="{{ url_for('login') }}" class="btn btn-secondary"
+            style="padding: 1rem 2.5rem; font-size: 1.1rem;">Login</a>
     </div>
-    
-    <div style="margin-top: 3rem; text-align: left;">
-        <h2 style="color: #333; margin-bottom: 1rem;">Features</h2>
-        <ul style="list-style-type: none; padding: 0;">
-            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
-                ✓ Secure user authentication
-            </li>
-            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
-                ✓ Professional PDF document generation
-            </li>
-            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
-                ✓ Multiple document templates (Letters, Invoices, Reports)
-            </li>
-            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
-                ✓ Document history and management
-            </li>
-            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
-                ✓ Easy-to-use interface
-            </li>
-            <li style="padding: 0.5rem 0;">
-                ✓ Secure and reliable
-            </li>
-        </ul>
+</div>
+
+<div class="grid-cols-2 section-spacer">
+    <div class="glass-panel animate-fade-in delay-1" style="padding: 2rem;">
+        <h3>🧾 Smart Receipts</h3>
+        <p class="text-muted">Generate high-fidelity payment proofs with QR codes, transaction IDs, and realistic
+            formatting suitable for expense reporting.</p>
     </div>
-    
-    <div style="margin-top: 2rem; padding: 1.5rem; background-color: #e7f3ff; border-radius: 4px; text-align: left;">
-        <h3 style="color: #667eea; margin-bottom: 1rem;">How It Works</h3>
-        <ol style="color: #666; line-height: 1.8;">
-            <li>Create a free account</li>
-            <li>Choose a document type (Letter, Invoice, Report, or General)</li>
-            <li>Fill in your content</li>
-            <li>Download your professionally formatted PDF</li>
-        </ol>
+    <div class="glass-panel animate-fade-in delay-2" style="padding: 2rem;">
+        <h3>📄 Professional Invoices</h3>
+        <p class="text-muted">Create clean, itemized invoices that look like they came from top accounting software.
+            Tracking included.</p>
+    </div>
+    <div class="glass-panel animate-fade-in delay-3" style="padding: 2rem;">
+        <h3>🤖 AI Power</h3>
+        <p class="text-muted">Just type "invoice for 5 hours consulting" and let our AI draft the perfect document for
+            you.</p>
+    </div>
+    <div class="glass-panel animate-fade-in delay-3" style="padding: 2rem;">
+        <h3>🔒 Secure & Private</h3>
+        <p class="text-muted">Your data is yours. Securely stored, easily deleted. No watermarks on your personal
+            documents.</p>
     </div>
 </div>
 {% endblock %}

@@ -1,94 +1,87 @@
 {% extends "base.html" %}
 
-{% block title %}Generate Document - DocuGen{% endblock %}
+{% block title %}Generate Document{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2 style="color: #667eea; margin-bottom: 1.5rem;">Generate New Document</h2>
-    
-    <form method="POST" action="{{ url_for('generate_document') }}" enctype="multipart/form-data">
-        <div class="form-group">
-            <label for="doc_type">Document Type</label>
-            <select id="doc_type" name="doc_type" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
-                <option value="" {% if not doc_type %}selected{% endif %}>Select a document type...</option>
-                <option value="general" {% if doc_type == 'general' %}selected{% endif %}>General Document</option>
-                <option value="letter" {% if doc_type == 'letter' %}selected{% endif %}>Professional Letter</option>
-                <option value="invoice" {% if doc_type == 'invoice' %}selected{% endif %}>Invoice</option>
-                <option value="report" {% if doc_type == 'report' %}selected{% endif %}>Report</option>
-            </select>
-        </div>
+<div class="animate-fade-in">
+    <h1 class="text-center" style="margin-bottom: 2rem;">Nieuw Betaalbewijs / Document</h1>
 
-        <div class="form-group">
-            <label for="title">Document Title</label>
-            <input type="text" id="title" name="title" required 
-                   value="{{ title or '' }}"
-                   placeholder="e.g., Business Proposal, Monthly Report, etc.">
-        </div>
+    <div class="glass-panel" style="padding: 2rem; max-width: 800px; margin: 0 auto;">
+        <form method="POST" enctype="multipart/form-data">
 
-        <div class="form-group">
-            <label for="content">Document Content</label>
-            <textarea id="content" name="content" rows="12" required
-                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; font-family: inherit; resize: vertical;"
-                      placeholder="Enter your document content here...
-
-You can write multiple paragraphs."
-            >{{ content or '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="background-color: #f8f9fa; padding: 1rem; border-radius: 4px;">
-            <label for="ai_prompt" style="margin-bottom: 0.25rem;">AI Assist (optional)</label>
-            <p style="color: #666; margin-bottom: 0.75rem;">Provide a prompt and/or upload a short text/markdown file to auto-generate a draft.</p>
-            <textarea id="ai_prompt" name="ai_prompt" rows="4"
-                      style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; font-family: inherit; resize: vertical;"
-                      placeholder="Summarize the topic, audience, and tone for the AI to draft..."
-            >{{ ai_prompt or '' }}</textarea>
-            <div style="margin-top: 0.75rem;">
-                <label for="ai_file" style="display:block; margin-bottom:0.35rem;">Upload context file (.txt or .md, max {{ max_ai_size_kb }}KB)</label>
-                <input type="file" id="ai_file" name="ai_file" accept=".txt,.md" data-max-size="{{ max_ai_size_kb }}">
-                <small style="color:#666;">Server-enforced limit: {{ max_ai_size_kb }}KB</small>
+            <div class="form-group">
+                <label for="doc_type">Type Document</label>
+                <select id="doc_type" name="doc_type" required onchange="toggleBankSelect()">
+                    <option value="" disabled selected>Kies een type...</option>
+                    <option value="receipt" {% if doc_type=='receipt' %}selected{% endif %}>Bank Betaalbewijs</option>
+                    <option value="invoice" {% if doc_type=='invoice' %}selected{% endif %}>Factuur</option>
+                    <option value="letter" {% if doc_type=='letter' %}selected{% endif %}>Brief</option>
+                    <option value="report" {% if doc_type=='report' %}selected{% endif %}>Rapport</option>
+                </select>
             </div>
-            <div style="margin-top: 0.75rem;">
-                <button type="submit" name="action" value="ai_generate" class="btn btn-secondary">Generate draft with AI</button>
+
+            <div class="form-group" id="bank-select-container" style="display:none;">
+                <label for="bank_style">Kies Bank Stijl</label>
+                <select id="bank_style" name="bank_style">
+                    <option value="ing">ING Bank</option>
+                    <option value="abn">ABN AMRO</option>
+                    <option value="rabo">Rabobank</option>
+                    <option value="generic">Algemeen</option>
+                </select>
+                <small class="text-muted">Selecteer de bankstijl voor de opmaak.</small>
             </div>
-        </div>
 
-        <div class="form-group" style="margin-top: 2rem;">
-            <button type="submit" name="action" value="create" class="btn btn-primary">Generate PDF</button>
-            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="margin-left: 1rem;">Cancel</a>
-        </div>
-    </form>
+            <!-- AI Section -->
+            <div class="glass-panel"
+                style="padding: 1.5rem; margin-bottom: 2rem; background: hsla(220, 30%, 20%, 0.3);">
+                <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--color-secondary);">✨ AI Assistant
+                    (Optioneel)</h3>
+                <div class="form-group">
+                    <label for="ai_prompt">Omschrijf de transactie:</label>
+                    <input type="text" id="ai_prompt" name="ai_prompt" value="{{ ai_prompt }}"
+                        placeholder="Bijv: Overboeking aan J. Janssen van €250 voor Huur">
+                </div>
+                <button type="submit" name="action" value="ai_generate" class="btn btn-secondary btn-sm">
+                    Genereer Concept
+                </button>
+            </div>
 
-    <div style="margin-top: 2rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 4px;">
-        <h3 style="color: #333; margin-bottom: 1rem;">Document Type Guide</h3>
-        <ul style="color: #666; line-height: 1.8;">
-            <li><strong>Professional Letter:</strong> Formal business letter with header, body, and signature</li>
-            <li><strong>Invoice:</strong> Professional invoice layout with details table</li>
-            <li><strong>Report:</strong> Structured report with cover page and sections</li>
-            <li><strong>General Document:</strong> Simple document with title and content</li>
-        </ul>
+            <div class="form-group">
+                <label for="title">Titel / Omschrijving</label>
+                <input type="text" id="title" name="title" value="{{ title }}" placeholder="Betaalbewijs Huur" required>
+            </div>
+
+            <div class="form-group">
+                <label for="content">Details (Eén per regel, formaat: 'Sleutel: Waarde')</label>
+                <textarea id="content" name="content"
+                    placeholder="Bedrag: € 100,00&#10;Naam: J. Oud&#10;Van Rekening: NL99INGB...&#10;Ontvanger: P. Nieuw&#10;Naar Rekening: NL01ABNA..."
+                    required>{{ content }}</textarea>
+                <small class="text-muted">Gebruik specifieke sleutels: Bedrag, Naam, Van Rekening, Ontvanger, Naar
+                    Rekening, Omschrijving.</small>
+            </div>
+
+            <div class="text-center mt-4">
+                <button type="submit" name="action" value="create" class="btn btn-primary" style="min-width: 200px;">
+                    Download PDF
+                </button>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="margin-left: 1rem;">Annuleren</a>
+            </div>
+        </form>
     </div>
 </div>
 
 <script>
-    // Add helpful hints based on document type selection
-    document.getElementById('doc_type').addEventListener('change', function() {
-        const contentField = document.getElementById('content');
-        const docType = this.value;
-        
-        if (docType === 'letter') {
-            contentField.placeholder = "Dear [Recipient],\n\nI am writing to...\n\n[Your letter content here]\n\nThank you for your consideration.";
-        } else if (docType === 'invoice') {
-            contentField.placeholder = "Service/Product Description:\n- Item 1: [Description]\n- Item 2: [Description]\n\nTotal Amount: [Amount]\n\nPayment Terms: [Terms]";
-        } else if (docType === 'report') {
-            contentField.placeholder = "Executive Summary:\n\n[Overview of the report]\n\nKey Findings:\n- Finding 1\n- Finding 2\n\nConclusion:\n[Your conclusions]";
+    function toggleBankSelect() {
+        var typeSelect = document.getElementById('doc_type');
+        var bankDiv = document.getElementById('bank-select-container');
+        if (typeSelect.value === 'receipt') {
+            bankDiv.style.display = 'block';
         } else {
-            contentField.placeholder = "Enter your document content here...\n\nYou can write multiple paragraphs.";
+            bankDiv.style.display = 'none';
+            document.getElementById('bank_style').value = 'generic';
         }
-    });
-    // Trigger placeholder update on initial load only when content is empty
-    const contentField = document.getElementById('content');
-    if (contentField && !contentField.value) {
-        document.getElementById('doc_type').dispatchEvent(new Event('change'));
     }
+    // Run on load
+    window.onload = toggleBankSelect;
 </script>
 {% endblock %}

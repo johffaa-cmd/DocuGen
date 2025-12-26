@@ -1,0 +1,121 @@
+@app.route('/generate', methods=['GET', 'POST'])
+@login_required
+def generate_document():
+    """Generate a new document"""
+    form_state = {
+        'doc_type': '',
+        'title': '',
+        'content': '',
+        'ai_prompt': '',
+        'max_ai_size_kb': MAX_AI_FILE_SIZE // 1024
+    }
+    if request.method == 'POST':
+        action = request.form.get('action', 'create')
+        raw_type = request.form.get('doc_type', '')
+        bank_style = request.form.get('bank_style', 'generic')
+        
+        # Combine type and style if receipt
+        if raw_type == 'receipt':
+            # Hack: Store style in "doc_type" field as "receipt:ing"
+            # We will handle extraction in download route
+            final_doc_type = f"receipt:{bank_style}"
+        else:
+            final_doc_type = normalize_doc_type(raw_type)
+
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        ai_prompt = request.form.get('ai_prompt', '').strip()
+
+        form_state.update({'doc_type': raw_type, 'title': title, 'content': content, 'ai_prompt': ai_prompt})
+
+        if action == 'ai_generate':
+            try:
+                file_text = load_text_from_upload(request.files.get('ai_file'))
+            except ValueError as exc:
+                flash(str(exc), 'error')
+                return render_template('generate.html', **form_state)
+
+            if not ai_prompt and not file_text:
+                flash('Provide a prompt or upload a text/markdown file for AI generation.', 'error')
+                return render_template('generate.html', **form_state)
+
+            generated_title, generated_content = generate_ai_draft(ai_prompt, file_text, raw_type)
+            form_state['title'] = title or generated_title
+            
+            # Pre-fill content with bank specific template if receipt
+            if raw_type == 'receipt':
+                form_state['content'] = "Bedrag: € 0,00\nNaam: \nVan Rekening: \nOntvanger: \nNaar Rekening: \nOmschrijving: " + generated_content
+            else:
+                form_state['content'] = generated_content
+                
+            flash('AI draft generated. Review and edit before creating the PDF.', 'info')
+            return render_template('generate.html', **form_state)
+
+        # Create document record
+        document = Document(
+            title=title,
+            doc_type=final_doc_type, # Stores "receipt:ing" or "invoice" etc.
+            content=content,
+            user_id=session['user_id']
+        )
+        db.session.add(document)
+        db.session.commit()
+
+        flash(f'Document "{title}" created successfully!', 'success')
+        return redirect(url_for('download_document', doc_id=document.id))
+
+    return render_template('generate.html', **form_state)
+
+
+@app.route('/download/<int:doc_id>')
+@login_required
+def download_document(doc_id):
+    """Download a generated document"""
+    document = Document.query.get_or_404(doc_id)
+    
+    if document.user_id != session['user_id']:
+        flash('Access denied.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get(document.user_id)
+    pdf_buffer = BytesIO()
+    
+    # Parse doc_type for style
+    # We essentially create a temporary "proxy" object to pass to the generator
+    class DocProxy:
+        pass
+    
+    doc_proxy = DocProxy()
+    doc_proxy.content = document.content
+    doc_proxy.title = document.title
+    doc_proxy.created_at = document.created_at
+    doc_proxy.id = document.id
+    
+    bank_style = 'generic'
+    
+    if ':' in document.doc_type:
+        base_type, style = document.doc_type.split(':', 1)
+        doc_proxy.doc_type = base_type
+        bank_style = style
+    else:
+        doc_proxy.doc_type = document.doc_type
+
+    try:
+        dispatch_pdf_generation(pdf_buffer, doc_proxy, user, bank_style=bank_style)
+    except Exception as e:
+        app.logger.error(f"PDF Gen Error: {e}")
+        flash("Error generating PDF. Please contact support.", "error")
+        return redirect(url_for('dashboard'))
+    
+    pdf_buffer.seek(0)
+    
+    safe_title = secure_filename(document.title)
+    if not safe_title: safe_title = "document"
+    filename = f"{safe_title}_{document.id}.pdf"
+    
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )

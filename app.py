@@ -11,12 +11,9 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.pdfgen import canvas
+
+# Import new PDF engine
+from pdf_generator import dispatch_pdf_generation
 
 app = Flask(__name__)
 
@@ -34,7 +31,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-ALLOWED_DOC_TYPES = {'letter', 'invoice', 'report', 'general'}
+ALLOWED_DOC_TYPES = {'letter', 'invoice', 'report', 'receipt', 'general'}
 ALLOWED_AI_FILE_EXTENSIONS = {'txt', 'md'}
 MAX_AI_FILE_SIZE = 50 * 1024  # 50KB cap to avoid large uploads
 MAX_SUMMARY_LENGTH = 320
@@ -174,19 +171,34 @@ def generate_ai_draft(prompt_text, file_text, doc_type):
         'letter': ['Purpose', 'Key Points', 'Closing'],
         'invoice': ['Scope Summary', 'Deliverables', 'Next Steps'],
         'report': ['Context', 'Findings', 'Recommendations'],
+        'receipt': ['Items', 'Payment Details', 'Notes'],
         'general': ['Overview', 'Details', 'Actions']
     }
+    
     sections = []
-    for idx, heading in enumerate(section_templates[doc_type]):
-        section_lines = []
-        if idx == 0:
-            section_lines.append(summary)
-        else:
-            for point in bullet_points:
-                section_lines.append(f"- {point}")
-        sections.append(f"{heading}\n" + '\n'.join(section_lines))
+    
+    # Special handling for Receipt to ensure it matches the PDF generator expectations
+    if doc_type == 'receipt':
+        # Create a mock receipt structure
+        sections.append("Itemize your purchase here (Format: Item: Price):")
+        sections.append("Laptop: 1200.00")
+        sections.append("Mouse: 25.00")
+        sections.append("Warranty: 150.00")
+        sections.append("")
+        sections.append(f"Notes: {summary}")
+    else:
+        # Standard logic
+        for idx, heading in enumerate(section_templates.get(doc_type, section_templates['general'])):
+            section_lines = []
+            if idx == 0:
+                section_lines.append(summary)
+            else:
+                for point in bullet_points:
+                    section_lines.append(f"- {point}")
+            sections.append(f"{heading}\n" + '\n'.join(section_lines))
 
-    content = '\n\n'.join(sections)
+    content = '\n\n'.join(sections) if doc_type != 'receipt' else '\n'.join(sections)
+
     return title_candidate, content
 
 
@@ -199,6 +211,11 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+@app.context_processor
+def inject_now():
+    return {'now': datetime.utcnow()}
 
 
 @app.route('/')
@@ -319,12 +336,21 @@ def generate_document():
     }
     if request.method == 'POST':
         action = request.form.get('action', 'create')
-        doc_type = normalize_doc_type(request.form.get('doc_type', ''))
+        raw_type = request.form.get('doc_type', '')
+        bank_style = request.form.get('bank_style', 'generic')
+        
+        # Combine type and style if receipt
+        if raw_type == 'receipt':
+            # Hack: Store style in "doc_type" field as "receipt:ing"
+            final_doc_type = f"receipt:{bank_style}"
+        else:
+            final_doc_type = normalize_doc_type(raw_type)
+
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
         ai_prompt = request.form.get('ai_prompt', '').strip()
 
-        form_state.update({'doc_type': doc_type, 'title': title, 'content': content, 'ai_prompt': ai_prompt})
+        form_state.update({'doc_type': raw_type, 'title': title, 'content': content, 'ai_prompt': ai_prompt})
 
         if action == 'ai_generate':
             try:
@@ -337,25 +363,22 @@ def generate_document():
                 flash('Provide a prompt or upload a text/markdown file for AI generation.', 'error')
                 return render_template('generate.html', **form_state)
 
-            generated_title, generated_content = generate_ai_draft(ai_prompt, file_text, doc_type)
+            generated_title, generated_content = generate_ai_draft(ai_prompt, file_text, raw_type)
             form_state['title'] = title or generated_title
-            form_state['content'] = generated_content
+            
+            # Pre-fill content with bank specific template if receipt
+            if raw_type == 'receipt':
+                form_state['content'] = "Bedrag: € 0,00\nNaam: \nVan Rekening: \nOntvanger: \nNaar Rekening: \nOmschrijving: " + generated_content
+            else:
+                form_state['content'] = generated_content
+                
             flash('AI draft generated. Review and edit before creating the PDF.', 'info')
-            return render_template('generate.html', **form_state)
-
-        # Validation for manual or AI-refined submission
-        if not doc_type:
-            flash('Document type is required.', 'error')
-            return render_template('generate.html', **form_state)
-
-        if not title:
-            flash('Document title is required.', 'error')
             return render_template('generate.html', **form_state)
 
         # Create document record
         document = Document(
             title=title,
-            doc_type=doc_type,
+            doc_type=final_doc_type, # Stores "receipt:ing" or "invoice" etc.
             content=content,
             user_id=session['user_id']
         )
@@ -374,33 +397,46 @@ def download_document(doc_id):
     """Download a generated document"""
     document = Document.query.get_or_404(doc_id)
     
-    # Verify ownership
     if document.user_id != session['user_id']:
         flash('Access denied.', 'error')
         return redirect(url_for('dashboard'))
     
-    # Get user once for all PDF generation functions
     user = User.query.get(document.user_id)
-    
-    # Generate PDF
     pdf_buffer = BytesIO()
     
-    if document.doc_type == 'letter':
-        generate_letter_pdf(pdf_buffer, document, user)
-    elif document.doc_type == 'invoice':
-        generate_invoice_pdf(pdf_buffer, document, user)
-    elif document.doc_type == 'report':
-        generate_report_pdf(pdf_buffer, document, user)
+    # Parse doc_type for style
+    # We essentially create a temporary "proxy" object to pass to the generator
+    class DocProxy:
+        pass
+    
+    doc_proxy = DocProxy()
+    doc_proxy.content = document.content
+    doc_proxy.title = document.title
+    doc_proxy.created_at = document.created_at
+    doc_proxy.id = document.id
+    
+    bank_style = 'generic'
+    
+    if ':' in document.doc_type:
+        base_type, style = document.doc_type.split(':', 1)
+        doc_proxy.doc_type = base_type
+        bank_style = style
     else:
-        generate_simple_pdf(pdf_buffer, document, user)
+        doc_proxy.doc_type = document.doc_type
+
+    try:
+        dispatch_pdf_generation(pdf_buffer, doc_proxy, user, bank_style=bank_style)
+    except Exception as e:
+        app.logger.error(f"PDF Gen Error: {e}")
+        flash("Error generating PDF. Please contact support.", "error")
+        return redirect(url_for('dashboard'))
     
     pdf_buffer.seek(0)
     
-    # Sanitize filename to prevent directory traversal and special characters
     safe_title = secure_filename(document.title)
-    if not safe_title:  # If title is all special chars, use a default
-        safe_title = "document"
+    if not safe_title: safe_title = "document"
     filename = f"{safe_title}_{document.id}.pdf"
+    
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',
@@ -426,176 +462,6 @@ def delete_document(doc_id):
     
     flash(f'Document "{title}" deleted successfully.', 'success')
     return redirect(url_for('dashboard'))
-
-
-def generate_simple_pdf(buffer, document, user):
-    """Generate a simple PDF document"""
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    story = []
-    styles = getSampleStyleSheet()
-    
-    # Title
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#667eea'),
-        spaceAfter=30,
-        alignment=1  # Center
-    )
-    story.append(Paragraph(document.title, title_style))
-    story.append(Spacer(1, 0.2 * inch))
-    
-    # Document info
-    info_style = styles['Normal']
-    story.append(Paragraph(f"<b>Created by:</b> {user.username}", info_style))
-    story.append(Paragraph(f"<b>Date:</b> {document.created_at.strftime('%B %d, %Y')}", info_style))
-    story.append(Paragraph(f"<b>Type:</b> {document.doc_type.capitalize()}", info_style))
-    story.append(Spacer(1, 0.3 * inch))
-    
-    # Content
-    if document.content:
-        content_style = styles['BodyText']
-        for paragraph in document.content.split('\n'):
-            if paragraph.strip():
-                story.append(Paragraph(paragraph, content_style))
-                story.append(Spacer(1, 0.1 * inch))
-    
-    doc.build(story)
-
-
-def generate_letter_pdf(buffer, document, user):
-    """Generate a professional letter PDF"""
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    story = []
-    styles = getSampleStyleSheet()
-    
-    # Header with date
-    date_style = ParagraphStyle('DateStyle', parent=styles['Normal'], alignment=2)  # Right align
-    story.append(Paragraph(document.created_at.strftime('%B %d, %Y'), date_style))
-    story.append(Spacer(1, 0.3 * inch))
-    
-    # Title
-    title_style = ParagraphStyle(
-        'LetterTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#667eea'),
-        spaceAfter=20
-    )
-    story.append(Paragraph(document.title, title_style))
-    story.append(Spacer(1, 0.2 * inch))
-    
-    # Content
-    if document.content:
-        body_style = styles['BodyText']
-        for paragraph in document.content.split('\n'):
-            if paragraph.strip():
-                story.append(Paragraph(paragraph, body_style))
-                story.append(Spacer(1, 0.15 * inch))
-    
-    # Signature
-    story.append(Spacer(1, 0.5 * inch))
-    story.append(Paragraph(f"Sincerely,", styles['Normal']))
-    story.append(Spacer(1, 0.3 * inch))
-    story.append(Paragraph(f"<b>{user.username}</b>", styles['Normal']))
-    
-    doc.build(story)
-
-
-def generate_invoice_pdf(buffer, document, user):
-    """Generate an invoice PDF"""
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    story = []
-    styles = getSampleStyleSheet()
-    
-    # Header
-    title_style = ParagraphStyle(
-        'InvoiceTitle',
-        parent=styles['Heading1'],
-        fontSize=28,
-        textColor=colors.HexColor('#667eea'),
-        alignment=1
-    )
-    story.append(Paragraph("INVOICE", title_style))
-    story.append(Spacer(1, 0.3 * inch))
-    
-    # Invoice details
-    invoice_data = [
-        ['Invoice Title:', document.title],
-        ['Invoice Date:', document.created_at.strftime('%B %d, %Y')],
-        ['From:', user.username],
-        ['Email:', user.email]
-    ]
-    
-    invoice_table = Table(invoice_data, colWidths=[2 * inch, 4 * inch])
-    invoice_table.setStyle(TableStyle([
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#667eea')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    story.append(invoice_table)
-    story.append(Spacer(1, 0.4 * inch))
-    
-    # Content/Description
-    if document.content:
-        story.append(Paragraph("<b>Description:</b>", styles['Heading2']))
-        story.append(Spacer(1, 0.1 * inch))
-        body_style = styles['BodyText']
-        for paragraph in document.content.split('\n'):
-            if paragraph.strip():
-                story.append(Paragraph(paragraph, body_style))
-                story.append(Spacer(1, 0.1 * inch))
-    
-    doc.build(story)
-
-
-def generate_report_pdf(buffer, document, user):
-    """Generate a professional report PDF"""
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    story = []
-    styles = getSampleStyleSheet()
-    
-    # Cover page
-    title_style = ParagraphStyle(
-        'ReportTitle',
-        parent=styles['Heading1'],
-        fontSize=32,
-        textColor=colors.HexColor('#667eea'),
-        alignment=1,
-        spaceAfter=30
-    )
-    story.append(Spacer(1, 2 * inch))
-    story.append(Paragraph(document.title, title_style))
-    story.append(Spacer(1, 0.5 * inch))
-    
-    # Report metadata
-    meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], alignment=1, fontSize=12)
-    story.append(Paragraph(f"Prepared by: {user.username}", meta_style))
-    story.append(Paragraph(f"Date: {document.created_at.strftime('%B %d, %Y')}", meta_style))
-    story.append(Spacer(1, 1 * inch))
-    
-    # Content section
-    if document.content:
-        section_style = ParagraphStyle(
-            'Section',
-            parent=styles['Heading2'],
-            fontSize=16,
-            textColor=colors.HexColor('#667eea'),
-            spaceAfter=15,
-            spaceBefore=20
-        )
-        story.append(Paragraph("Executive Summary", section_style))
-        
-        body_style = styles['BodyText']
-        for paragraph in document.content.split('\n'):
-            if paragraph.strip():
-                story.append(Paragraph(paragraph, body_style))
-                story.append(Spacer(1, 0.15 * inch))
-    
-    doc.build(story)
 
 
 def init_db():

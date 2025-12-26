@@ -16,7 +16,7 @@ def test_ai_generation_from_prompt_and_file():
     assert "Context" in content
     assert "veilig" in content.lower() or "risico" in content.lower()
     assert "Recommendations" in content
-    print("✓ AI draft with prompt and file generated")
+    print("[PASS] AI draft with prompt and file generated")
 
 
 def test_ai_generation_defaults_to_general():
@@ -25,7 +25,7 @@ def test_ai_generation_defaults_to_general():
     assert normalize_doc_type("unknown") == "general"
     assert title.startswith("AI General Draft")
     assert "Overview" in content
-    print("✓ AI draft defaulted to general")
+    print("[PASS] AI draft defaulted to general")
 
 
 if __name__ == "__main__":
